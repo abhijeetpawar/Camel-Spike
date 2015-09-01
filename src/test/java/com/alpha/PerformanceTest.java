@@ -28,24 +28,25 @@ public class PerformanceTest extends CamelTestSupport {
 
     private Reader reader = new Reader(new JsonMapper(new ObjectMapper()));
 
-    private int messageCount = 1000;
+    private int messageCount = 100;
 
     public MessageMapping testMapping() {
         return () -> new Mapping(
                 "CREATE_USER",
-                new FieldMapping("username", "USERNAME", TransformerFunction.asString()),
-                new FieldMapping("password", "PASSWORD", TransformerFunction.asString())
+                new FieldMapping("name.firstName", "FIRST_NAME", TransformerFunction.asString()),
+                new FieldMapping("name.lastName", "LAST_NAME", TransformerFunction.asString()),
+                new FieldMapping("age", "AGE", TransformerFunction.asString())
         );
     }
 
     @Test
     public void basicLatencyTest() throws Exception {
-        String message = "{\"username\":\"abc\",\"password\":\"xyz\"}";
+        String message = "{\"name\":{\"firstName\":\"J\",\"lastName\":\"Barns\"},\"age\":20}";
 
         resultEndpoint.expectedMessageCount(messageCount);
 
         for (int i = 0; i < messageCount; i++) {
-            template.sendBodyAndHeader("active-mq:queue:in", message, "TIME", System.currentTimeMillis());
+            template.sendBody("active-mq:queue:in", message);
         }
 
         resultEndpoint.assertIsSatisfied();
@@ -57,6 +58,7 @@ public class PerformanceTest extends CamelTestSupport {
             public void configure() {
                 /* Chain */
                 from("active-mq:queue:in")
+                        .process(exchange -> exchange.getIn().setHeader("TIME", System.currentTimeMillis()))
                         .process(reader)
                         .process(new Transformer(testMapping()))
                         .process(new Processor() {

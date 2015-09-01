@@ -16,7 +16,7 @@ public class FieldMapping {
         this.transform = transform;
     }
 
-    public Pair<String, Object> map(Map<String, Object> input) {
+    public Pair<String, Object> map(EngineMessage input) {
         Object value = input.get(from);
         return new Pair<>(to, transform.apply(value));
     }

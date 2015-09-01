@@ -67,7 +67,7 @@ public class AppConfig {
                         .process(reader)
                         .process(new Transformer(messageMapping))
                         .marshal().json(JsonLibrary.Jackson)
-                .to(ExchangePattern.InOnly, "active-mq:queue:in");
+                        .to(ExchangePattern.InOnly, "active-mq:queue:in");
 
                 from("active-mq:queue:in")
                         .process(exchange -> System.out.println("process ..."))

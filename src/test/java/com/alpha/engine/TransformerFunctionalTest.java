@@ -1,12 +1,8 @@
 package com.alpha.engine;
 
-import com.alpha.mapping.Mapping;
-import com.alpha.mapping.FieldMapping;
-import com.alpha.mapping.MessageMapping;
-import com.alpha.mapping.TransformerFunction;
-import org.apache.camel.EndpointInject;
-import org.apache.camel.Produce;
-import org.apache.camel.ProducerTemplate;
+import com.alpha.mapping.*;
+import com.google.common.collect.ImmutableMap;
+import org.apache.camel.*;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.model.dataformat.JsonLibrary;
@@ -24,16 +20,24 @@ public class TransformerFunctionalTest extends CamelTestSupport {
     @Produce(uri = "direct:start")
     protected ProducerTemplate template;
 
-    MessageMapping messageMapping = () -> new Mapping("CREATE_USER", new FieldMapping("username", "USERNAME", TransformerFunction.asString()), new FieldMapping("password", "PASSWORD", TransformerFunction.asString()));
+    MessageMapping messageMapping = () -> new Mapping(
+            "CREATE_USER",
+            new FieldMapping("name.firstName", "FIRST_NAME", TransformerFunction.asString()),
+            new FieldMapping("name.lastName", "LAST_NAME", TransformerFunction.asString()),
+            new FieldMapping("age", "AGE", TransformerFunction.asString())
+    );
 
     @Test
     public void shouldTransformUsingGivenMapping() throws InterruptedException {
         Map<String, Object> inputPayload = new LinkedHashMap<String, Object>() {{
-            put("username", "abc");
-            put("password", "xyz");
+            put("name", new LinkedHashMap<String, Object>() {{
+                put("firstName", "J");
+                put("lastName", "Barns");
+            }});
+            put("age", 20);
         }};
 
-        resultEndpoint1.expectedBodiesReceived("{\"USERNAME\":\"abc\",\"PASSWORD\":\"xyz\"}");
+        resultEndpoint1.expectedBodiesReceived("{\"FIRST_NAME\":\"J\",\"LAST_NAME\":\"Barns\",\"AGE\":\"20\"}");
 
         template.sendBody(inputPayload);
 
@@ -45,7 +49,12 @@ public class TransformerFunctionalTest extends CamelTestSupport {
         return new RouteBuilder() {
             public void configure() {
                 from("direct:start")
-                        .process(new Transformer(messageMapping)).marshal().json(JsonLibrary.Jackson)
+                        .process(new Transformer(messageMapping))
+                        .process(exchange -> {
+                            EngineMessage engineMessage = exchange.getIn().getBody(EngineMessage.class);
+                            exchange.getIn().setBody(engineMessage.getMessage());
+                        })
+                        .marshal().json(JsonLibrary.Jackson)
                         .to("mock:result1");
             }
         };
