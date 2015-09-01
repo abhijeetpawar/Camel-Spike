@@ -6,19 +6,19 @@ import java.util.List;
 
 public class Mapping {
     private final String sourceId;
-    private final List<MessageMap> messageMaps;
+    private final List<FieldMapping> fieldMappings;
 
-    public Mapping(String sourceId, MessageMap... messageMaps) {
+    public Mapping(String sourceId, FieldMapping... fieldMappings) {
         this.sourceId = sourceId;
-        this.messageMaps = new ArrayList<>();
-        Collections.addAll(this.messageMaps, messageMaps);
+        this.fieldMappings = new ArrayList<>();
+        Collections.addAll(this.fieldMappings, fieldMappings);
     }
 
     public String getSourceId() {
         return sourceId;
     }
 
-    public List<MessageMap> getMessageMaps() {
-        return messageMaps;
+    public List<FieldMapping> getFieldMappings() {
+        return fieldMappings;
     }
 }

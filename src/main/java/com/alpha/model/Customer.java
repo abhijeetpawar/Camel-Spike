@@ -1,21 +1,17 @@
 package com.alpha.model;
 
+import com.alpha.model.vo.Name;
+
 public class Customer {
-    private String customerId;
-    private String name;
+    private Name name;
     private int age;
 
-    public Customer(String customerId, String name, int age) {
-        this.customerId = customerId;
+    public Customer(Name name, int age) {
         this.name = name;
         this.age = age;
     }
 
-    public String getCustomerId() {
-        return customerId;
-    }
-
-    public String getName() {
+    public Name getName() {
         return name;
     }
 

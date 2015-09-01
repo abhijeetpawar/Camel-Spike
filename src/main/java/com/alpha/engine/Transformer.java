@@ -1,7 +1,7 @@
 package com.alpha.engine;
 
 import com.alpha.mapping.Mapping;
-import com.alpha.mapping.MessageMap;
+import com.alpha.mapping.FieldMapping;
 import com.alpha.mapping.MessageMapping;
 import javafx.util.Pair;
 import org.apache.camel.Exchange;
@@ -24,11 +24,11 @@ public class Transformer implements Processor {
 
         Mapping mapping = messageMapping.get();
 
-        for (MessageMap messageMap : mapping.getMessageMaps()) {
-            Pair<String, Object> pair = messageMap.map(input);
+        for (FieldMapping fieldMapping : mapping.getFieldMappings()) {
+            Pair<String, Object> pair = fieldMapping.map(input);
             output.put(pair.getKey(), pair.getValue());
         }
-        exchange.getOut().setHeader("RECORD_TYPE", mapping.getSourceId());
-        exchange.getOut().setBody(output);
+        exchange.getIn().setHeader("RECORD_TYPE", mapping.getSourceId());
+        exchange.getIn().setBody(output);
     }
 }

@@ -2,12 +2,16 @@ package com.alpha.configuration;
 
 import com.alpha.engine.Reader;
 import com.alpha.engine.Transformer;
-import com.alpha.mapping.*;
+import com.alpha.mapping.Mapping;
+import com.alpha.mapping.FieldMapping;
+import com.alpha.mapping.MessageMapping;
+import com.alpha.mapping.TransformerFunction;
+import org.apache.activemq.ActiveMQConnection;
+import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.camel.BeanInject;
-import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
-import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.jms.JmsComponent;
 import org.apache.camel.component.servlet.CamelHttpTransportServlet;
 import org.apache.camel.model.dataformat.JsonLibrary;
 import org.apache.camel.spring.SpringCamelContext;
@@ -17,9 +21,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.HashMap;
-
-import static org.apache.activemq.camel.component.ActiveMQComponent.activeMQComponent;
+import javax.jms.ConnectionFactory;
 
 @Configuration
 public class AppConfig {
@@ -44,8 +46,8 @@ public class AppConfig {
     public MessageMapping messageMapping() {
         return () -> new Mapping(
                 "CREATE_USER",
-                new MessageMap("username", "USERNAME", TransformerFunction.asString()),
-                new MessageMap("password", "PASSWORD", TransformerFunction.asString())
+                new FieldMapping("username", "USERNAME", TransformerFunction.asString()),
+                new FieldMapping("password", "PASSWORD", TransformerFunction.asString())
         );
     }
 
@@ -56,21 +58,23 @@ public class AppConfig {
             @BeanInject
             Reader reader;
 
+            @BeanInject
+            MessageMapping messageMapping;
+
             @Override
             public void configure() throws Exception {
                 from("servlet:///hello")
                         .process(reader)
-                        .process(new Transformer(messageMapping()))
+                        .process(new Transformer(messageMapping))
                         .marshal().json(JsonLibrary.Jackson)
-                .to(ExchangePattern.InOnly,"activemq:queue:in");
+                .to(ExchangePattern.InOnly, "active-mq:queue:in");
 
-                from("activemq:queue:in")
-                        .process(exchange -> System.out.println("setp 1"))
-                        .process(exchange -> System.out.println("setp 2"))
-                        .to("activemq:queue:out");
+                from("active-mq:queue:in")
+                        .process(exchange -> System.out.println("process ..."))
+                        .to("active-mq:queue:out");
 
-                from("activemq:queue:out")
-                        .process(exchange -> System.out.println("done"))
+                from("active-mq:queue:out")
+                        .process(exchange -> System.out.println("done ..."))
                         .to("file://src/main/resources/out");
             }
         };
@@ -79,7 +83,10 @@ public class AppConfig {
     @Bean
     CamelContextConfiguration contextConfiguration() {
         return camelContext -> {
-            camelContext.addComponent("activemq", activeMQComponent("vm://localhost?broker.persistent=false"));
+            ConnectionFactory connectionFactory = new ActiveMQConnectionFactory(
+                    "admin", "admin", ActiveMQConnection.DEFAULT_BROKER_URL);
+
+            camelContext.addComponent("active-mq", JmsComponent.jmsComponentAutoAcknowledge(connectionFactory));
         };
     }
 }

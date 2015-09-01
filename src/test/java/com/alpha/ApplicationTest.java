@@ -1,8 +1,6 @@
 package com.alpha;
 
-import org.apache.camel.EndpointInject;
-import org.apache.camel.Produce;
-import org.apache.camel.ProducerTemplate;
+import org.apache.camel.*;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit4.CamelTestSupport;
@@ -28,7 +26,7 @@ public class ApplicationTest extends CamelTestSupport {
         resultEndpoint1.expectedBodiesReceived("<matched/>");
         resultEndpoint2.expectedMessageCount(0);
 
-        template.sendBodyAndHeader("<matched/>", "foo", "bar");
+        template.sendBodyAndHeader("<matched/>", "headerKey", "headerValue");
 
         resultEndpoint1.assertIsSatisfied();
         resultEndpoint2.assertIsSatisfied();
@@ -39,7 +37,7 @@ public class ApplicationTest extends CamelTestSupport {
         resultEndpoint1.expectedMessageCount(0);
         resultEndpoint2.expectedBodiesReceived("<notMatched/>");
 
-        template.sendBodyAndHeader("<notMatched/>", "foo", "notMatchedHeaderValue");
+        template.sendBodyAndHeader("<notMatched/>", "headerKey", "notMatchedHeaderValue");
 
         resultEndpoint1.assertIsSatisfied();
         resultEndpoint2.assertIsSatisfied();
@@ -50,8 +48,8 @@ public class ApplicationTest extends CamelTestSupport {
         return new RouteBuilder() {
             public void configure() {
                 from("direct:start").choice()
-                        .when(header("foo").isEqualTo("bar")).to("direct:mid")
-                        .when(header("foo").isNotEqualTo("bar")).to("mock:result2")
+                        .when(header("headerKey").isEqualTo("headerValue")).to("direct:mid")
+                        .when(header("headerKey").isNotEqualTo("headerValue")).to("mock:result2")
                         .otherwise().stop();
 
                 from("direct:mid").to("mock:result1");

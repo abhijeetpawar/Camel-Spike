@@ -1,10 +1,9 @@
 package com.alpha.engine;
 
 import com.alpha.mapping.Mapping;
-import com.alpha.mapping.MessageMap;
+import com.alpha.mapping.FieldMapping;
 import com.alpha.mapping.MessageMapping;
 import com.alpha.mapping.TransformerFunction;
-import com.google.common.base.Function;
 import org.apache.camel.EndpointInject;
 import org.apache.camel.Produce;
 import org.apache.camel.ProducerTemplate;
@@ -25,7 +24,7 @@ public class TransformerFunctionalTest extends CamelTestSupport {
     @Produce(uri = "direct:start")
     protected ProducerTemplate template;
 
-    MessageMapping messageMapping = () -> new Mapping("CREATE_USER", new MessageMap("username", "USERNAME", TransformerFunction.asString()), new MessageMap("password", "PASSWORD", TransformerFunction.asString()));
+    MessageMapping messageMapping = () -> new Mapping("CREATE_USER", new FieldMapping("username", "USERNAME", TransformerFunction.asString()), new FieldMapping("password", "PASSWORD", TransformerFunction.asString()));
 
     @Test
     public void shouldTransformUsingGivenMapping() throws InterruptedException {
