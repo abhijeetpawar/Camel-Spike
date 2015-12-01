@@ -1,32 +1,20 @@
 package com.alpha.configuration;
 
-import com.alpha.engine.Reader;
-import com.alpha.engine.Transformer;
-import com.alpha.mapping.Mapping;
-import com.alpha.mapping.FieldMapping;
-import com.alpha.mapping.MessageMapping;
-import com.alpha.mapping.TransformerFunction;
+import com.alpha.processor.CircuitBreaker;
+import org.apache.activemq.RedeliveryPolicy;
+import org.apache.activemq.pool.PooledConnectionFactory;
 import org.apache.activemq.ActiveMQConnection;
 import org.apache.activemq.ActiveMQConnectionFactory;
-import org.apache.camel.BeanInject;
-import org.apache.camel.ExchangePattern;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.jms.JmsComponent;
-import org.apache.camel.component.servlet.CamelHttpTransportServlet;
-import org.apache.camel.model.dataformat.JsonLibrary;
 import org.apache.camel.spring.SpringCamelContext;
 import org.apache.camel.spring.boot.CamelContextConfiguration;
-import org.springframework.boot.context.embedded.ServletRegistrationBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import javax.jms.ConnectionFactory;
-
 @Configuration
 public class AppConfig {
-    private static final String CAMEL_URL_MAPPING = "/camel/*";
-    private static final String CAMEL_SERVLET_NAME = "CamelServlet";
 
     @Bean
     public SpringCamelContext camelContext(ApplicationContext applicationContext) throws Exception {
@@ -36,46 +24,21 @@ public class AppConfig {
     }
 
     @Bean
-    public ServletRegistrationBean servletRegistrationBean() {
-        ServletRegistrationBean registration = new ServletRegistrationBean(new CamelHttpTransportServlet(), CAMEL_URL_MAPPING);
-        registration.setName(CAMEL_SERVLET_NAME);
-        return registration;
-    }
-
-    @Bean
-    public MessageMapping messageMapping() {
-        return () -> new Mapping(
-                "CREATE_USER",
-                new FieldMapping("username", "USERNAME", TransformerFunction.asString()),
-                new FieldMapping("password", "PASSWORD", TransformerFunction.asString())
-        );
-    }
-
-    @Bean
     public RouteBuilder routeBuilder() {
         return new RouteBuilder() {
-
-            @BeanInject
-            Reader reader;
-
-            @BeanInject
-            MessageMapping messageMapping;
+            final CircuitBreaker circuitBreaker = new CircuitBreaker(5);
 
             @Override
             public void configure() throws Exception {
-                from("servlet:///hello")
-                        .process(reader)
-                        .process(new Transformer(messageMapping))
-                        .marshal().json(JsonLibrary.Jackson)
-                        .to(ExchangePattern.InOnly, "active-mq:queue:in");
 
                 from("active-mq:queue:in")
                         .process(exchange -> System.out.println("process ..."))
-                        .to("active-mq:queue:out");
+                        .to("active-mq:queue:buffer");
 
-                from("active-mq:queue:out")
-                        .process(exchange -> System.out.println("done ..."))
-                        .to("file://src/main/resources/out");
+                from("active-mq:queue:buffer?transacted=true")
+                        .process(circuitBreaker)
+                        .process(exchange -> System.out.println("Done"))
+                        .to("active-mq:queue:out");
             }
         };
     }
@@ -83,11 +46,29 @@ public class AppConfig {
     @Bean
     CamelContextConfiguration contextConfiguration() {
         return camelContext -> {
-            ConnectionFactory connectionFactory = new ActiveMQConnectionFactory(
+            ActiveMQConnectionFactory activeMQConnectionFactory = new ActiveMQConnectionFactory(
                     "admin", "admin", ActiveMQConnection.DEFAULT_BROKER_URL);
 
-            camelContext.addComponent("active-mq", JmsComponent.jmsComponentAutoAcknowledge(connectionFactory));
+            RedeliveryPolicy redeliveryPolicy = new RedeliveryPolicy();
+            redeliveryPolicy.setMaximumRedeliveries(RedeliveryPolicy.NO_MAXIMUM_REDELIVERIES);
+            activeMQConnectionFactory.setRedeliveryPolicy(redeliveryPolicy);
+
+            PooledConnectionFactory pooledConnectionFactory = new PooledConnectionFactory(activeMQConnectionFactory);
+            pooledConnectionFactory.setMaxConnections(4);
+
+            camelContext.getShutdownStrategy().setTimeout(2);
+            camelContext.addComponent("active-mq", JmsComponent.jmsComponentTransacted(pooledConnectionFactory));
         };
     }
 }
+
+/*
+1. Use activeMq PooledConnectionFactory (manages conns, sessions & producers)
+2. Set transacted flag=true(not necessary) && add jmsTransactionManager for transactions.
+3. Add cacheLevelName=CACHE_CONSUMER as PooledConnFactory does not cache consumers
+4. Check redelivery policy of ActiveMq for
+- maximumRedeliveries
+
+http://tmielke.blogspot.in/2012/03/camel-jms-with-transactions-lessons.html
+ */
 

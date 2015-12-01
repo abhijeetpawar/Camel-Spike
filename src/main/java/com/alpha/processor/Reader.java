@@ -1,4 +1,4 @@
-package com.alpha.engine;
+package com.alpha.processor;
 
 import com.alpha.utils.JsonMapper;
 import org.apache.camel.Exchange;

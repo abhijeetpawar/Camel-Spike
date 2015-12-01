@@ -1,7 +1,7 @@
 package com.alpha;
 
-import com.alpha.engine.Reader;
-import com.alpha.engine.Transformer;
+import com.alpha.processor.Reader;
+import com.alpha.processor.Transformer;
 import com.alpha.mapping.Mapping;
 import com.alpha.mapping.FieldMapping;
 import com.alpha.mapping.MessageMapping;

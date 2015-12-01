@@ -1,7 +1,6 @@
-package com.alpha.engine;
+package com.alpha.processor;
 
 import com.alpha.mapping.*;
-import com.google.common.collect.ImmutableMap;
 import org.apache.camel.*;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
