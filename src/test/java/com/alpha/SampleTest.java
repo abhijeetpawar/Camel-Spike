@@ -6,7 +6,7 @@ import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit4.CamelTestSupport;
 import org.junit.Test;
 
-public class ApplicationTest extends CamelTestSupport {
+public class SampleTest extends CamelTestSupport {
 
     @EndpointInject(uri = "mock:result1")
     protected MockEndpoint resultEndpoint1;

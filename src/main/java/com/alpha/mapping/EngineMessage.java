@@ -1,10 +1,11 @@
 package com.alpha.mapping;
 
+import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Stack;
 
-public class EngineMessage {
+public class EngineMessage implements Serializable {
     private Map<String, Object> message;
 
     public EngineMessage() {

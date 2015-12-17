@@ -1,41 +1,45 @@
 package com.alpha;
 
+import com.alpha.mapping.FieldMapping;
+import com.alpha.mapping.Mapping;
+import com.alpha.mapping.MessageMapping;
 import com.alpha.processor.Reader;
 import com.alpha.processor.Transformer;
-import com.alpha.mapping.Mapping;
-import com.alpha.mapping.FieldMapping;
-import com.alpha.mapping.MessageMapping;
-import com.alpha.mapping.TransformerFunction;
 import com.alpha.utils.JsonMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.pool.PooledConnectionFactory;
 import org.apache.camel.CamelContext;
 import org.apache.camel.EndpointInject;
-import org.apache.camel.Exchange;
-import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.jms.JmsComponent;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit4.CamelTestSupport;
 import org.junit.Test;
 
-import javax.jms.ConnectionFactory;
+import java.util.function.Function;
 
 public class PerformanceTest extends CamelTestSupport {
 
-    @EndpointInject(uri = "mock:result")
-    protected MockEndpoint resultEndpoint;
+//    public static final String BUFFER = "active-mq:queue:buffer?cacheLevelName=CACHE_CONSUMER&transferExchange=true";
+    public static final String BUFFER = "direct:buffer";
+//    public static final String BUFFER_OUT = "active-mq:queue:out";
+    public static final String BUFFER_OUT = "direct:out";
 
-    private Reader reader = new Reader(new JsonMapper(new ObjectMapper()));
+    public static final String DIRECT_IN = "direct:in";
+    public static final String MOCK_RESULT = "mock:result";
 
-    private int messageCount = 100;
+    @EndpointInject(uri = MOCK_RESULT)
+    protected MockEndpoint mockEndpoint;
+
+    private final Reader reader = new Reader(new JsonMapper(new ObjectMapper()));
 
     public MessageMapping testMapping() {
         return () -> new Mapping(
                 "CREATE_USER",
-                new FieldMapping("name.firstName", "FIRST_NAME", TransformerFunction.asString()),
-                new FieldMapping("name.lastName", "LAST_NAME", TransformerFunction.asString()),
-                new FieldMapping("age", "AGE", TransformerFunction.asString())
+                new FieldMapping("name.firstName", "FIRST_NAME", Function.identity()),
+                new FieldMapping("name.lastName", "LAST_NAME", Function.identity()),
+                new FieldMapping("age", "AGE", Function.identity())
         );
     }
 
@@ -43,47 +47,45 @@ public class PerformanceTest extends CamelTestSupport {
     public void basicLatencyTest() throws Exception {
         String message = "{\"name\":{\"firstName\":\"J\",\"lastName\":\"Barns\"},\"age\":20}";
 
-        resultEndpoint.expectedMessageCount(messageCount);
+        double messageCount = 1000;
+        mockEndpoint.expectedMessageCount((int) messageCount);
 
-        for (int i = 0; i < messageCount; i++) {
-            template.sendBody("active-mq:queue:in", message);
-        }
+        Thread sender = new Thread(() -> {
+            for (int i = 0; i < messageCount; i++) {
+                template.sendBody(DIRECT_IN, message);
+            }
+        });
+        sender.start();
 
-        resultEndpoint.assertIsSatisfied();
+        double startTime = System.currentTimeMillis();
+//        Thread.sleep(5000);
+        mockEndpoint.assertIsSatisfied(10000L);
+        double endTime = System.currentTimeMillis();
+
+        double duration = (endTime - startTime) / 1000;
+
+        System.out.println("*****************************************");
+        System.out.println(" Total Time : " + duration + " s");
+        System.out.println(" Mean : " + messageCount / duration + " per second");
+        System.out.println("*****************************************");
+
     }
 
     @Override
     protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
-                /* Chain */
-                from("active-mq:queue:in")
-                        .process(exchange -> exchange.getIn().setHeader("TIME", System.currentTimeMillis()))
+                from(DIRECT_IN)
                         .process(reader)
                         .process(new Transformer(testMapping()))
-                        .process(new Processor() {
-                            int lowerBound = messageCount / 4;
-                            int upperBound = (3 * messageCount) / 4;
+                        .to(BUFFER);
 
-                            int messageCnt = 0;
-                            long totalLatency = 0L;
+                from(BUFFER)
+                        .process(exchange -> exchange.getIn().setHeader("TIME", System.currentTimeMillis()))
+                        .to(BUFFER_OUT);
 
-                            @Override
-                            public void process(Exchange exchange) throws Exception {
-                                Long messageCreationTime = (Long) exchange.getIn().getHeader("TIME");
-
-                                if (messageCnt > lowerBound && messageCnt < upperBound) {
-                                    totalLatency += System.currentTimeMillis() - messageCreationTime;
-                                }
-                                messageCnt++;
-
-                                if (messageCnt == messageCount) {
-                                    log.info("****************************************************");
-                                    log.info("Average Latency = " + ((double) totalLatency / (messageCnt / 2) + "ms"));
-                                    log.info("****************************************************");
-                                }
-                            }
-                        }).to("mock:result");
+                from(BUFFER_OUT)
+                        .to(MOCK_RESULT);
             }
         };
     }
@@ -91,8 +93,16 @@ public class PerformanceTest extends CamelTestSupport {
     @Override
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false");
-        camelContext.addComponent("active-mq", JmsComponent.jmsComponentAutoAcknowledge(connectionFactory));
+
+        ActiveMQConnectionFactory activeMQConnectionFactory = new ActiveMQConnectionFactory(
+                "admin", "admin", "tcp://localhost:61616");
+        activeMQConnectionFactory.setUseAsyncSend(true);
+
+        PooledConnectionFactory pooledConnectionFactory = new PooledConnectionFactory(activeMQConnectionFactory);
+        pooledConnectionFactory.setMaxConnections(2);
+        pooledConnectionFactory.setMaximumActiveSessionPerConnection(2);
+
+        camelContext.addComponent("active-mq", JmsComponent.jmsComponentTransacted(pooledConnectionFactory));
         return camelContext;
     }
 }

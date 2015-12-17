@@ -10,20 +10,21 @@ import org.junit.Test;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 
-public class TransformerFunctionalTest extends CamelTestSupport {
+public class TransformerTest extends CamelTestSupport {
 
-    @EndpointInject(uri = "mock:result1")
-    protected MockEndpoint resultEndpoint1;
+    @EndpointInject(uri = "mock:result")
+    protected MockEndpoint resultEndpoint;
 
     @Produce(uri = "direct:start")
     protected ProducerTemplate template;
 
     MessageMapping messageMapping = () -> new Mapping(
             "CREATE_USER",
-            new FieldMapping("name.firstName", "FIRST_NAME", TransformerFunction.asString()),
-            new FieldMapping("name.lastName", "LAST_NAME", TransformerFunction.asString()),
-            new FieldMapping("age", "AGE", TransformerFunction.asString())
+            new FieldMapping("name.firstName", "FIRST_NAME", Function.identity()),
+            new FieldMapping("name.lastName", "LAST_NAME", Function.identity()),
+            new FieldMapping("age", "AGE", Function.identity())
     );
 
     @Test
@@ -36,11 +37,11 @@ public class TransformerFunctionalTest extends CamelTestSupport {
             put("age", 20);
         }};
 
-        resultEndpoint1.expectedBodiesReceived("{\"FIRST_NAME\":\"J\",\"LAST_NAME\":\"Barns\",\"AGE\":\"20\"}");
+        resultEndpoint.expectedBodiesReceived("{\"FIRST_NAME\":\"J\",\"LAST_NAME\":\"Barns\",\"AGE\":\"20\"}");
 
         template.sendBody(inputPayload);
 
-        resultEndpoint1.assertIsSatisfied();
+        resultEndpoint.assertIsSatisfied();
     }
 
     @Override
@@ -54,7 +55,7 @@ public class TransformerFunctionalTest extends CamelTestSupport {
                             exchange.getIn().setBody(engineMessage.getMessage());
                         })
                         .marshal().json(JsonLibrary.Jackson)
-                        .to("mock:result1");
+                        .to("mock:result");
             }
         };
     }

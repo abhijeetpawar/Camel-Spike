@@ -1,9 +1,8 @@
 package com.alpha.mapping;
 
-import com.google.common.base.Function;
 import javafx.util.Pair;
 
-import java.util.Map;
+import java.util.function.Function;
 
 public class FieldMapping {
     private final String from;

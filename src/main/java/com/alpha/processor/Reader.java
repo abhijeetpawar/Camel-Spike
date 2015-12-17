@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-// Perhaps a DataFormat?
 @Component
 public class Reader implements Processor {
     private JsonMapper jsonMapper;
