@@ -1,4 +1,4 @@
-package com.alpha;
+package com.alpha.etc;
 
 import org.apache.camel.*;
 import org.apache.camel.builder.RouteBuilder;

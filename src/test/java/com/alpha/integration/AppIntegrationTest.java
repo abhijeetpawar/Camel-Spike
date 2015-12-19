@@ -47,7 +47,7 @@ public class AppIntegrationTest {
     public void setUp() throws Exception {
         producerTemplate = new DefaultProducerTemplate(camelContext);
 
-        camelContext.getRouteDefinitions().get(1).adviceWith(camelContext, new AdviceWithRouteBuilder() {
+        camelContext.getRouteDefinition("route2").adviceWith(camelContext, new AdviceWithRouteBuilder() {
             @Override
             public void configure() throws Exception {
                 weaveAddLast().to("mock:advised");
@@ -62,7 +62,6 @@ public class AppIntegrationTest {
         producerTemplate.stop();
     }
 
-    // CircuitBeaker - Trip Limit = 5; Retry = 5 Seconds
     @Test
     public void shouldTestRoute() throws Exception {
         int messageCount = 5;
@@ -77,5 +76,3 @@ public class AppIntegrationTest {
         mockEndpoint.assertIsSatisfied();
     }
 }
-
-// http://opensourceconnections.com/blog/2014/04/24/correctly-using-camels-advicewith-in-unit-tests/

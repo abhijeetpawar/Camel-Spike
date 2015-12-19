@@ -4,6 +4,8 @@ import com.alpha.mapping.FieldMapping;
 import com.alpha.mapping.Mapping;
 import com.alpha.mapping.MessageMapping;
 import com.alpha.processor.*;
+import com.alpha.utils.JsonMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.activemq.RedeliveryPolicy;
 import org.apache.activemq.pool.PooledConnectionFactory;
 import org.apache.activemq.ActiveMQConnection;
@@ -30,39 +32,18 @@ public class AppConfig {
 
     @Bean
     public RouteBuilder routeBuilder() {
-        return new RouteBuilder() {
-            @BeanInject
-            private Reader reader;
+        MessageMapping messageMapping = () -> new Mapping(
+                "CREATE_USER",
+                new FieldMapping("username", "USERNAME", Function.identity()),
+                new FieldMapping("password", "PASSWORD", Function.identity())
+        );
 
-            @BeanInject
-            private CountProcessor countProcessor;
+        Reader reader = new Reader(new JsonMapper(new ObjectMapper()));
+        CountProcessor countProcessor = new CountProcessor(new CountService());
+        CircuitBreaker circuitBreaker = new CircuitBreaker(5);
+        Transformer transformer = new Transformer(messageMapping);
 
-            private MessageMapping messageMapping = () -> new Mapping(
-                    "CREATE_USER",
-                    new FieldMapping("username", "USERNAME", Function.identity()),
-                    new FieldMapping("password", "PASSWORD", Function.identity())
-            );
-
-//            final private CountProcessor countProcessor = new CountProcessor(countService);
-            final private CircuitBreaker circuitBreaker = new CircuitBreaker(5);
-            final private Transformer transformer = new Transformer(messageMapping);
-
-            @Override
-            public void configure() throws Exception {
-
-                from("active-mq:queue:in")
-                        .process(reader)
-                        .process(transformer)
-                        .process(exchange -> System.out.println("process ..."))
-                        .to("active-mq:queue:buffer");
-
-                from("active-mq:queue:buffer?transacted=true")
-                        .process(countProcessor)
-                        .process(circuitBreaker)
-                        .process(exchange -> System.out.println("Done"))
-                        .to("active-mq:queue:out");
-            }
-        };
+        return new CustomRoute(reader, countProcessor, circuitBreaker, transformer);
     }
 
     @Bean
