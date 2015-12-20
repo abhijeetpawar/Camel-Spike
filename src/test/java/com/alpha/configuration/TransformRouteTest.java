@@ -86,5 +86,3 @@ public class TransformRouteTest extends CamelTestSupport {
         return new TransformRoute(fromUri, toUri, reader, transformer);
     }
 }
-
-// http://opensourceconnections.com/blog/2014/04/24/correctly-using-camels-advicewith-in-unit-tests/
