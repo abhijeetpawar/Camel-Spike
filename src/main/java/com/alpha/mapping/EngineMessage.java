@@ -12,10 +12,6 @@ public class EngineMessage implements Serializable {
         this.message = new LinkedHashMap<>();
     }
 
-    public EngineMessage(Map<String, Object> message) {
-        this.message = message;
-    }
-
     public Map<String, Object> getMessage() {
         return message;
     }
@@ -48,7 +44,6 @@ public class EngineMessage implements Serializable {
         }
     }
 
-
     private void put(Stack<String> stack, Object value, Map<String, Object> content) {
         String key = stack.pop();
 
@@ -69,5 +64,13 @@ public class EngineMessage implements Serializable {
             stack.push(elements[i]);
         }
         return stack;
+    }
+
+    public static EngineMessage from(Map<String, Object> map) {
+        EngineMessage result = new EngineMessage();
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            result.put(entry.getKey(), entry.getValue());
+        }
+        return result;
     }
 }

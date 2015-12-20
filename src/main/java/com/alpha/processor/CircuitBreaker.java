@@ -10,13 +10,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class CircuitBreaker implements Processor {
-    private volatile boolean isOpen;
+    private final int backOff;
     private final int tripLimit;
+    private volatile boolean isOpen;
     private ScheduledExecutorService scheduler;
 
-    public CircuitBreaker(int tripLimit) {
+    public CircuitBreaker(int tripLimit, int backOff) {
         this.isOpen = false;
         this.tripLimit = tripLimit;
+        this.backOff = backOff;
     }
 
     @Override
@@ -45,7 +47,7 @@ public class CircuitBreaker implements Processor {
                         } catch (Exception e) {
                             System.out.println("------------ PROBLEM IN RESUMING -------------");
                         }
-                    }, 2, TimeUnit.SECONDS);
+                    }, backOff, TimeUnit.SECONDS);
 
                 } catch (Exception e) {
                     System.out.println("------------ PROBLEM IN SUSPENDING -------------");

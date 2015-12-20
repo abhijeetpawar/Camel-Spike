@@ -77,7 +77,7 @@ public class CustomRouteTest extends CamelTestSupport {
 
         Reader reader = new Reader(new JsonMapper(new ObjectMapper()));
         CountProcessor countProcessor = new CountProcessor(new CountService());
-        CircuitBreaker circuitBreaker = new CircuitBreaker(5);
+        CircuitBreaker circuitBreaker = new CircuitBreaker(5, 2);
         Transformer transformer = new Transformer(messageMapping);
 
 

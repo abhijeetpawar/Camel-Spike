@@ -20,7 +20,7 @@ public class Transformer implements Processor {
     @Override
     public void process(Exchange exchange) throws Exception {
         EngineMessage output = new EngineMessage();
-        EngineMessage input = new EngineMessage(exchange.getIn().getBody(Map.class));
+        EngineMessage input = EngineMessage.from(exchange.getIn().getBody(Map.class));
 
         Mapping mapping = messageMapping.get();
 
